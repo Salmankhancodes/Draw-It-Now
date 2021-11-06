@@ -12,5 +12,14 @@ let server = app.listen(port, () => {
 
 let io = socket(server)
 io.on('connection', (socket) => {
-  console.log('made connection', socket)
+  console.log('made connection')
+  socket.on('beginPath', (data) => {
+    io.emit('beginPath', data)
+  })
+  socket.on('drawStroke', (data) => {
+    io.emit('drawStroke', data)
+  })
+  socket.on('undoRedoCanvas', (data) => {
+    io.emit('undoRedoCanvas', data)
+  })
 })

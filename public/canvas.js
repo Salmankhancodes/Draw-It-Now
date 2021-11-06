@@ -4,46 +4,56 @@ let pencilWidth = document.querySelector('.pencil-width')
 let eraserWidth = document.querySelector('.eraser-width')
 let undo = document.querySelector('.undo')
 let redo = document.querySelector('.redo')
-let pencilWidthValue = pencilWidth.value
-let selectedColor
 
 canvas.width = window.innerWidth
 canvas.height = window.innerHeight
 
+let pencilColor = 'white'
+let eraserColor = '#596275'
+
+let pencilWidthValue = pencilWidth.value
+let eraserWidthValue = eraserWidth.value
+
 let undoRedoTracker = [] //Data
 let track = 0 // Represent which action from tracker array
 
-let mousedown = false
-
-let tool = canvas.getContext('2d')
-tool.strokeStyle = 'white'
-tool.lineWidth = '3'
-
-canvas.addEventListener('mousedown', (e) => {
-  tool.beginPath()
-  tool.moveTo(e.clientX, e.clientY)
-  mousedown = true
-})
-
 allColors.forEach((eachColor) => {
   eachColor.addEventListener('click', (e) => {
-    selectedColor = eachColor.classList[0]
-    tool.strokeStyle = selectedColor
+    pencilColor = eachColor.classList[0]
+    console.log(pencilWidthValue, pencilColor)
   })
 })
 
 pencilWidth.addEventListener('change', (e) => {
-  tool.lineWidth = pencilWidth.value
+  pencilWidthValue = pencilWidth.value
 })
 
-eraserWidth.addEventListener('change', (e) => {
-  tool.lineWidth = eraserWidth.value
+let mousedown = false
+
+let tool = canvas.getContext('2d')
+tool.strokeStyle = pencilColor
+tool.lineWidth = pencilWidthValue
+
+canvas.addEventListener('mousedown', (e) => {
+  mousedown = true
+  let data = {
+    x: e.clientX,
+    y: e.clientY,
+  }
+  beginPath(data)
+  socket.emit('beginPath', data)
 })
 
 canvas.addEventListener('mousemove', (e) => {
   if (mousedown) {
-    tool.lineTo(e.clientX, e.clientY)
-    tool.stroke()
+    let data = {
+      x: e.clientX,
+      y: e.clientY,
+      color: eraserToggle ? eraserColor : pencilColor,
+      width: eraserToggle ? eraserWidthValue : pencilWidthValue,
+    }
+    socket.emit('drawStroke', data)
+    // drawStroke(data)
   }
 })
 
@@ -54,13 +64,31 @@ canvas.addEventListener('mouseup', (e) => {
   track = undoRedoTracker.length - 1
 })
 
+function beginPath(strokeObj) {
+  tool.beginPath()
+  tool.moveTo(strokeObj.x, strokeObj.y)
+}
+
+function drawStroke(strokeObj) {
+  tool.strokeStyle = strokeObj.color
+  tool.lineWidth = strokeObj.width
+  tool.lineTo(strokeObj.x, strokeObj.y)
+  tool.stroke()
+}
+
+eraserWidth.addEventListener('change', (e) => {
+  eraserWidthValue = eraserWidth.value
+  console.log(eraserWidth, eraserToggle)
+})
+
 undo.addEventListener('click', (e) => {
   if (track > 0) track--
   let data = {
     trackValue: track,
     undoRedoTracker,
   }
-  undoRedoCanvas(data)
+  socket.emit('undoRedoCanvas', data)
+  // undoRedoCanvas(data)
 })
 redo.addEventListener('click', (e) => {
   if (track < undoRedoTracker.length - 1) track++
@@ -68,7 +96,8 @@ redo.addEventListener('click', (e) => {
     trackValue: track,
     undoRedoTracker,
   }
-  undoRedoCanvas(data)
+  // undoRedoCanvas(data)
+  socket.emit('undoRedoCanvas', data)
 })
 
 function undoRedoCanvas(trackObj) {
@@ -82,12 +111,24 @@ function undoRedoCanvas(trackObj) {
   }
 }
 
-eraser.addEventListener('click', (e) => {
-  if (eraserToggle) {
-    tool.strokeStyle = '#596275'
-    tool.lineWidth = eraserWidth.value
-  } else {
-    tool.strokeStyle = selectedColor
-    tool.lineWidth = pencilWidthValue
-  }
+socket.on('beginPath', (data) => {
+  beginPath(data)
 })
+
+socket.on('drawStroke', (data) => {
+  drawStroke(data)
+})
+
+socket.on('undoRedoCanvas', (data) => {
+  undoRedoCanvas(data)
+})
+
+// eraser.addEventListener('click', (e) => {
+//   if (eraserToggle) {
+//     tool.strokeStyle = eraserColor
+//     tool.lineWidth = eraserWidthValue
+//   } else {
+//     tool.strokeStyle = pencilColor
+//     tool.lineWidth = pencilWidthValue
+//   }
+// })
